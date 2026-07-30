@@ -1,0 +1,16 @@
+# Unity가 이 repo를 프로젝트로 열었을 때 생기는 산출물 (패키지 소스만 추적)
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+*.csproj
+*.sln
+.vs/
+.idea/
+.DS_Store
+
+# 주의: Unity .meta 파일은 패키지 배포에 필요하므로 커밋한다(무시하지 않는다).
+# 최초 Unity import 시 생성되며, 그때 함께 커밋한다.

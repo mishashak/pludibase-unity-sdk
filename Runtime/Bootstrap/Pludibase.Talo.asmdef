@@ -1,0 +1,17 @@
+{
+  "name": "Pludibase.Talo",
+  "rootNamespace": "Pludibase",
+  "references": [
+    "Pludibase",
+    "Talo"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "_comment": "이 어셈블리만 Talo에 의존한다(Bootstrap). 코어(Auth/Purchases)는 Talo 없이도 컴파일된다. Talo 런타임 asmdef 이름이 'Talo'가 아니면 references를 실제 이름으로 바꾼다."
+}
