@@ -38,15 +38,17 @@ Pludibase.PludibaseClient.Configure("https://api.example.com", "talo_xxxxxxxx");
 ## 사용
 
 ### 소셜 로그인 (구글/애플)
-게임이 네이티브 플러그인으로 ID 토큰을 얻은 뒤 넘깁니다.
+게임이 네이티브 플러그인으로 ID 토큰을 얻은 뒤 넘깁니다. 내부는 `Talo.Players.Identify`라, 로그인 후 플레이어는 `Talo.CurrentAlias`로 접근합니다.
 ```csharp
 using Pludibase;
 
-// 예: 구글 로그인 플러그인이 idToken을 콜백으로 준 뒤
-var session = await PludibaseAuth.SignInWithGoogle(idToken);
+// 구글 로그인 플러그인이 idToken을 콜백으로 준 뒤
+await PludibaseAuth.SignInWithGoogle(idToken);
 
 // 애플
-var session = await PludibaseAuth.SignInWithApple(identityToken);
+await PludibaseAuth.SignInWithApple(identityToken);
+
+// 로그인 후: TaloGameServices.Talo.CurrentAlias 로 플레이어 접근
 ```
 > ID 토큰 얻는 법: 구글은 Google Sign-In 계열 Unity 플러그인, 애플은 "Sign in with Apple" Unity 플러그인(예: lupidan/apple-signin-unity)을 씁니다. iOS에 구글 로그인을 넣으면 App Store 정책상 애플 로그인도 함께 제공해야 합니다.
 
@@ -56,13 +58,14 @@ Unity IAP로 결제가 성공하면, 받은 구매 토큰을 넘겨 서버검증
 using Pludibase;
 
 var result = await PludibasePurchases.Verify(
-    Stores.GooglePlay,           // 또는 Stores.AppStore
+    Stores.GooglePlay,           // 파일럿은 Google Play (App Store는 다음 단계)
     "gem_pouch",                 // 스토어에 등록한 상품 ID
-    purchaseToken);              // Google Play purchase token / App Store 서명 트랜잭션
+    purchaseToken,               // Google Play purchase token
+    4900, "KRW");                // 금액/통화(분석용). 구매 유효성은 백엔드가 스토어로 서버검증
 
 if (result.valid)
 {
-    // 지급. 금액/통화의 정본은 result(백엔드 검증 결과)입니다.
+    // 지급. valid=false면 지급하지 않습니다.
 }
 ```
 Unity IAP의 `ProcessPurchase`에 어떻게 끼우는지는 [`Samples~/PurchaseVerification`](Samples~/PurchaseVerification/README.md) 참고.

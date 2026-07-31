@@ -9,43 +9,28 @@
 
 ---
 
-## 1. 소셜 로그인 검증
+## 1. 소셜 로그인 검증 (identify 흐름 재사용 · 구현 완료)
 
-### `POST /v1/players/auth/google`
-```json
-{ "token": "<Google ID 토큰(JWT)>" }
+**별도 로그인 엔드포인트를 만들지 않았습니다.** Talo가 이미 Steam/Google Play Games/Game Center를 처리하는 `GET /v1/players/identify` + `resolveIdentifier` + `Integration` 패턴에 google/apple을 얹었습니다.
+
+### 호출 (SDK/게임)
+Talo SDK의 identify를 그대로 씁니다. SDK는 `PludibaseAuth.SignInWithGoogle(idToken)`으로 감쌌습니다(내부는 `Talo.Players.Identify("google", idToken)`).
 ```
-백엔드 처리:
-1. 구글 공개키(JWKS)로 토큰 서명 검증. `aud` = 게임 설정의 Google OAuth client id, `iss` = accounts.google.com 확인, 만료 확인.
-2. 토큰의 `sub`(구글 계정 고유 id)로 `player_alias`(service=`google`, identifier=`sub`) 조회/생성.
-3. Talo 세션 발급(기존 로그인과 동일 machinery 재사용).
-
-### `POST /v1/players/auth/apple`
-```json
-{ "token": "<Apple identity 토큰(JWT)>" }
+GET /v1/players/identify?service=google&identifier=<Google ID 토큰(JWT)>
+GET /v1/players/identify?service=apple&identifier=<Apple identity 토큰(JWT)>
 ```
-- 애플 공개키로 검증, `aud` = 게임 bundle/service id, `iss` = appleid.apple.com. `sub`로 alias(service=`apple`) 조회/생성.
 
-### 공통 응답 (성공 200)
-```json
-{
-  "sessionToken": "<Talo 세션 토큰>",
-  "aliasId": "123",
-  "playerId": "uuid",
-  "isNewPlayer": true
-}
-```
-> 이 형태는 SDK의 `PludibaseSession`과 1:1입니다. SDK는 `sessionToken`을 Talo 세션에 태워 이후 요청을 이 플레이어로 인증합니다(P1 SDK 배선).
+### 백엔드 처리 (구현 완료)
+1. `resolveIdentifier`가 게임의 google-sign-in / apple-sign-in Integration을 찾아 토큰을 검증합니다. 구글/애플 공개키(JWKS)로 서명 확인 + `aud`(게임 설정 clientId) + `iss` + 만료 확인.
+2. 토큰의 `sub`를 식별자로 `player_alias`(service=`google`/`apple`) 조회/생성.
+3. 세션은 기존 identify 흐름이 그대로 처리합니다(socketToken 반환). 게스트 identify와 동일 경로라 새 세션 코드가 없습니다.
 
-### `POST /v1/players/auth/link` (게스트 승격)
-현재 게스트 세션(헤더 인증됨)에 소셜 신원을 연결합니다.
-```json
-{ "provider": "google", "token": "<ID 토큰>" }
-```
-- 게스트 alias가 붙은 player에 소셜 alias를 추가(진행 승계). 이미 다른 player에 연결된 소셜이면 충돌 규칙(정책 P1 확정).
+### 설정 (게임별)
+- Integration 타입 `google-sign-in` / `apple-sign-in`, config = `{ clientId }`(검증용 aud, 비밀 아님이라 미암호화).
+- alias service `google`/`apple` 추가(service 컬럼 varchar라 player_alias 마이그레이션 불필요). integration.type enum 마이그레이션만 추가.
 
-### 신규 마이그레이션
-- `player_alias.service` enum에 `google`, `apple` 추가.
+### 이월 (미구현)
+- 게스트→소셜 명시적 연동(link) 엔드포인트: 백로그. 현재는 같은 `sub`면 같은 player로 이어집니다.
 
 ---
 
@@ -55,11 +40,14 @@
 플레이어 세션으로 인증된 요청.
 ```json
 {
-  "store": "google_play",     // 또는 app_store
+  "store": "google_play",
   "productId": "gem_pouch",
-  "purchaseToken": "<Google Play purchase token 또는 App Store 서명 트랜잭션>"
+  "purchaseToken": "<Google Play purchase token>",
+  "amount": 4900,
+  "currency": "KRW"
 }
 ```
+> 파일럿: `amount`/`currency`는 클라이언트 보고값(분석용)입니다. 구매 **유효성**은 백엔드가 스토어로 서버검증합니다. 하드닝 = Google Play 카탈로그 가격 대조로 금액도 서버 확정.
 백엔드 처리:
 1. `store`에 따라 스토어에 직접 검증.
    - **google_play**: Google Play Developer API `purchases.products.get`(소비성) 로 purchaseToken 검증. 서비스 계정 인증. 상태(구매완료/취소/환불), 상품 일치, 이미 처리된 토큰인지(dedup) 확인. 검증 후 `acknowledge`(3일 내 필수).

@@ -16,7 +16,14 @@ namespace Pludibase
         /// <param name="store">Stores.GooglePlay / Stores.AppStore.</param>
         /// <param name="productId">스토어에 등록한 상품 ID.</param>
         /// <param name="purchaseToken">Google Play는 purchase token, App Store는 서명된 트랜잭션/영수증.</param>
-        public static async Task<PurchaseResult> Verify(string store, string productId, string purchaseToken)
+        /// <param name="amount">결제 금액(스토어 상품 가격). 분석용 보고값이며, 구매 유효성은 백엔드가 스토어로 검증한다.</param>
+        /// <param name="currency">통화 ISO 코드(예: KRW).</param>
+        public static async Task<PurchaseResult> Verify(
+            string store,
+            string productId,
+            string purchaseToken,
+            double amount,
+            string currency)
         {
             if (string.IsNullOrEmpty(store) || string.IsNullOrEmpty(productId) || string.IsNullOrEmpty(purchaseToken))
             {
@@ -27,7 +34,9 @@ namespace Pludibase
             {
                 store = store,
                 productId = productId,
-                purchaseToken = purchaseToken
+                purchaseToken = purchaseToken,
+                amount = amount,
+                currency = currency
             });
 
             var text = await PludibaseHttp.Post("/v1/purchases/verify", body);
@@ -40,6 +49,8 @@ namespace Pludibase
             public string store;
             public string productId;
             public string purchaseToken;
+            public double amount;
+            public string currency;
         }
     }
 
