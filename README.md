@@ -58,7 +58,7 @@ Unity IAP로 결제가 성공하면, 받은 구매 토큰을 넘겨 서버검증
 using Pludibase;
 
 var result = await PludibasePurchases.Verify(
-    Stores.GooglePlay,           // 파일럿은 Google Play (App Store는 다음 단계)
+    Stores.GooglePlay,           // 또는 Stores.AppStore (둘 다 서버검증 지원)
     "gem_pouch",                 // 스토어에 등록한 상품 ID
     purchaseToken,               // Google Play purchase token
     4900, "KRW");                // 금액/통화(분석용). 구매 유효성은 백엔드가 스토어로 서버검증

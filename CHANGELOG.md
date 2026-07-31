@@ -7,7 +7,8 @@
 - 소셜 로그인을 identify 흐름으로 정리: `PludibaseAuth.SignInWithGoogle/Apple`이 `Talo.Players.Identify("google"/"apple", token)`을 감싼다(백엔드가 별도 로그인 엔드포인트 대신 identify + Integration으로 처리). 로그인 후 `Talo.CurrentAlias`로 접근.
 - `PludibasePurchases.Verify`에 `amount`, `currency` 인자 추가(분석용 보고값, 유효성은 서버검증).
 ### 백엔드 (pludibase-backend, pludibase 브랜치)
-- 인증 서버검증 완료(d6d5c9c5), 결제 서버검증 완료(b97736bd). 실 E2E는 게임별 자격증명(구글 OAuth clientId, Play 서비스계정) 설정 후.
+- 인증 서버검증 완료(d6d5c9c5, 구글/애플 identify). 결제 서버검증: Google Play(b97736bd) + App Store(5f872497). SDK는 두 스토어를 `store` 인자로 균일 지원.
+- 실 E2E는 게임별 자격증명 설정 후: 구글 OAuth clientId, Play 서비스계정, App Store 키(.p8/issuerId/keyId/bundleId).
 
 ## [0.1.0] - 미출시 (P0 스캐폴딩)
 ### 추가
