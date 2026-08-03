@@ -2,6 +2,13 @@
 
 이 프로젝트는 [Semantic Versioning](https://semver.org)을 따른다.
 
+## [0.1.2] - 2026-08-03 (연동 차단 결함 수정)
+### 고침
+- **`.meta` 파일 전량 추가(17개).** UPM 패키지는 immutable folder라 Unity가 `.meta`를 생성해주지 않는다. 없으면 모든 파일이 `has no meta file, but it's in an immutable folder. The asset will be ignored.` 로 무시되고 `Library/ScriptAssemblies`에 `Pludibase.dll`이 아예 안 만들어진다. 즉 **패키지 전체가 컴파일되지 않았다.**
+- **`Pludibase.Talo.asmdef`의 references를 `Talo` → `Talo.Runtime`으로 정정.** Talo SDK의 실제 런타임 어셈블리 이름은 `Talo.Runtime`이다(TaloDev/unity `TaloRuntime.asmdef` 확인). 위 `.meta` 문제를 고치면 다음으로 막히던 지점.
+
+> 두 결함 모두 실제 Unity 프로젝트에 붙여본 적 없이 배포해서 생겼다. 0.1.2부터는 연동 확인 후 태그한다.
+
 ## [0.1.1] - 미출시 (P1 백엔드 연동)
 ### 변경
 - 소셜 로그인을 identify 흐름으로 정리: `PludibaseAuth.SignInWithGoogle/Apple`이 `Talo.Players.Identify("google"/"apple", token)`을 감싼다(백엔드가 별도 로그인 엔드포인트 대신 identify + Integration으로 처리). 로그인 후 `Talo.CurrentAlias`로 접근.

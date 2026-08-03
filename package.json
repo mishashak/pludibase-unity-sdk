@@ -1,6 +1,6 @@
 {
   "name": "com.pludibase.unity",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "displayName": "Pludibase Unity SDK",
   "description": "Talo 게임 백엔드 위에 얹는 pludibase 얇은 SDK. 구글/애플 계정 로그인 서버검증과 인앱결제(IAP) 서버검증을 게임에 붙여준다. 네이티브 로그인/결제 창은 Unity IAP와 각 플러그인이 띄우고, 이 SDK는 그 토큰/영수증을 pludibase 백엔드로 넘겨 검증한다.",
   "unity": "2021.3",
