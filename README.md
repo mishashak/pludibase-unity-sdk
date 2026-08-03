@@ -4,7 +4,11 @@ Talo 게임 백엔드 위에 얹는 pludibase 얇은 SDK입니다. **구글/애�
 
 네이티브 로그인 창과 스토어 결제 창은 이 SDK가 띄우지 않습니다. Unity IAP와 각 로그인 플러그인이 창을 띄우고, 이 SDK는 거기서 나온 **토큰/영수증을 pludibase 백엔드로 넘겨 검증**합니다. 어렵고 위험한 검증/환불/매출 집계는 전부 백엔드가 맡습니다.
 
-> 상태: **0.1.0 P0 스캐폴딩**입니다. API 표면은 정의됐고, 백엔드 verify 엔드포인트 구현(P1)이 붙으면 실제 동작합니다. 계약은 [`docs/VERIFY-CONTRACT.md`](docs/VERIFY-CONTRACT.md).
+> **연동은 [`docs/INTEGRATION-GUIDE.md`](docs/INTEGRATION-GUIDE.md) 하나만 따라가면 됩니다.**
+> 설치, 설정, 계측 지점, 자주 나는 문제까지 전부 거기 있습니다.
+
+> 상태: **0.1.2**. 백엔드 서버검증은 3개 스토어(Google Play, App Store, Steam)와
+> 구글/애플 로그인까지 붙어 있습니다. 백엔드 계약은 [`docs/VERIFY-CONTRACT.md`](docs/VERIFY-CONTRACT.md).
 
 ## 무엇을 하고 무엇을 안 하나
 
@@ -26,7 +30,8 @@ Package Manager > Add package from git URL:
 ```
 https://github.com/mishashak/pludibase-unity-sdk.git
 ```
-또는 Releases의 `.unitypackage`를 드래그.
+공개 저장소라 별도 권한이나 인증 없이 받아집니다.
+설치가 됐는지는 `Library/ScriptAssemblies` 에 `Pludibase.dll` 이 생겼는지로 확인합니다.
 
 ## 설정
 `apiUrl`과 `accessKey`는 Talo Settings 애셋에 넣는 값과 동일하게 줍니다(같은 백엔드를 가리키므로).

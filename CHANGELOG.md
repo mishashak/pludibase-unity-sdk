@@ -3,6 +3,12 @@
 이 프로젝트는 [Semantic Versioning](https://semver.org)을 따른다.
 
 ## [0.1.2] - 2026-08-03 (연동 차단 결함 수정)
+### 추가
+- **연동 가이드를 이 저장소로 옮김**: `docs/INTEGRATION-GUIDE.md` (v2.0.0). 기존 가이드는 SDK보다 먼저 쓰여
+  설치 방법, 파일명, access key 형태가 현행과 어긋나 있었다. 공개 저장소에 두어 연동 담당자가 바로 볼 수 있게 한다.
+  회사별 접속값(URL, 키)은 문서에 넣지 않고 자리표시자로 둔다.
+- `Tools~/check-package.py`: 유니티 없이 패키지 구조를 검사한다(아래 결함 2건이 이 검사로 잡힌다).
+
 ### 고침
 - **`.meta` 파일 전량 추가(17개).** UPM 패키지는 immutable folder라 Unity가 `.meta`를 생성해주지 않는다. 없으면 모든 파일이 `has no meta file, but it's in an immutable folder. The asset will be ignored.` 로 무시되고 `Library/ScriptAssemblies`에 `Pludibase.dll`이 아예 안 만들어진다. 즉 **패키지 전체가 컴파일되지 않았다.**
 - **`Pludibase.Talo.asmdef`의 references를 `Talo` → `Talo.Runtime`으로 정정.** Talo SDK의 실제 런타임 어셈블리 이름은 `Talo.Runtime`이다(TaloDev/unity `TaloRuntime.asmdef` 확인). 위 `.meta` 문제를 고치면 다음으로 막히던 지점.
