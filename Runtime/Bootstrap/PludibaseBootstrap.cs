@@ -72,13 +72,28 @@ namespace Pludibase
 
         // 광고 노출당 수익 발생 시 호출(미디에이션 SDK의 수익 콜백에서).
         // format: rewarded / interstitial / banner / native,  network: admob / applovin 등
-        public async Task LogAdRevenue(double amount, string currency, string format, string network)
+        //
+        // ⚠️ currency 는 IAP와 같은 통화로 맞춰 보낼 것. 대시보드는 통화를 환산하지 않아
+        //    섞이면 합산 매출이 나오지 않는다. AppLovin MAX 등 미디에이션은 보통 USD로 주므로
+        //    게임에서 매출 발생일 환율로 환산한 뒤 넘긴다.
+        //
+        // adUnit, placement 는 선택. 지금 대시보드가 읽지는 않지만 저장이 스키마리스라
+        // 심어두면 나중에 광고 단위별 분석을 소급해서 할 수 있다.
+        public async Task LogAdRevenue(
+            double amount,
+            string currency,
+            string format,
+            string network,
+            string adUnit = "",
+            string placement = "")
         {
             await Talo.Events.Track("ad_revenue",
                 ("amount", amount.ToString(CultureInfo.InvariantCulture)),
                 ("currency", currency),
                 ("format", format),
-                ("network", network));
+                ("network", network),
+                ("ad_unit", adUnit),
+                ("placement", placement));
             await Talo.Events.Flush();
         }
 

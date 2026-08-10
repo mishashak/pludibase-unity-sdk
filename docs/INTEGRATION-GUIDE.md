@@ -165,16 +165,77 @@ await bootstrap.LogPurchase(4900, "KRW", "gem_pouch", "appstore");
 
 켜지는 화면: 수익화(매출, ARPPU, 결제 유저 수, ARPDAU, 상품별 매출), LTV
 
-### 6-2. 광고 수익
+### 6-2. 광고 수익 (IAA)
 
-**심는 위치: 미디에이션 SDK의 수익 콜백 안.**
+**심는 위치: 미디에이션 SDK의 노출 단위 수익 콜백 안.**
 
 ```csharp
 await bootstrap.LogAdRevenue(55.5, "KRW", "rewarded", "admob");
 ```
 
-심는 콜백 예: AdMob `OnAdPaid`, AppLovin MAX `OnAdRevenuePaidEvent`
 켜지는 화면: 광고수익(IAA), eCPM, 형태별, 네트워크별
+
+미디에이션은 무엇을 쓰든 됩니다. **노출 단위 수익 콜백만 주면** 붙습니다.
+
+| 미디에이션 | 콜백 |
+|---|---|
+| AppLovin MAX | `OnAdRevenuePaidEvent` |
+| Unity LevelPlay | `ImpressionDataReadyEvent` |
+| AdMob | `OnPaidEvent` |
+
+#### ⚠️ 통화를 먼저 맞추세요
+
+**미디에이션은 보통 USD로 수익을 줍니다**(AppLovin MAX는 USD 고정).
+그런데 인앱결제는 원화로 들어옵니다.
+
+**대시보드는 통화를 환산하지 않습니다.** 섞이면 합산 매출이 안 나오고 경고만 뜹니다(제약 10번).
+
+그래서 **게임에서 환산해 IAP와 같은 통화로 보냅니다.** 환율은 **매출 발생일 기준**으로 잡습니다
+(월말 일괄 환산이 아니라, 그 노출이 일어난 날의 환율).
+
+```csharp
+// 예: 앱 실행 시 그날 환율을 한 번 받아두고 재사용
+double krw = adInfo.Revenue * todayUsdKrwRate;
+await bootstrap.LogAdRevenue(krw, "KRW", "rewarded", adInfo.NetworkName);
+```
+
+#### AppLovin MAX 연동 예시
+
+네 가지 포맷 각각에 콜백을 답니다. 형태별 지표가 이 `format` 값으로 갈립니다.
+
+```csharp
+using Pludibase;
+
+void HookMaxRevenue(PludibaseBootstrap bootstrap, double usdToKrw)
+{
+    void Report(string format, MaxSdkBase.AdInfo adInfo)
+    {
+        // 광고 콜백에서 await 하면 SDK 콜백 스레드를 잡으므로 fire-and-forget.
+        // 실패해도 광고 흐름은 막지 않되, 예외는 삼키지 말고 로그로 남긴다.
+        _ = bootstrap.LogAdRevenue(
+                adInfo.Revenue * usdToKrw,   // USD -> KRW (매출 발생일 환율)
+                "KRW",
+                format,
+                adInfo.NetworkName,
+                adInfo.AdUnitIdentifier,     // 선택
+                adInfo.Placement)            // 선택
+            .ContinueWith(t =>
+            {
+                if (t.IsFaulted) Debug.LogWarning($"[pludibase] ad_revenue 전송 실패: {t.Exception}");
+            });
+    }
+
+    MaxSdkCallbacks.Rewarded.OnAdRevenuePaidEvent     += (id, info) => Report("rewarded", info);
+    MaxSdkCallbacks.Interstitial.OnAdRevenuePaidEvent += (id, info) => Report("interstitial", info);
+    MaxSdkCallbacks.Banner.OnAdRevenuePaidEvent       += (id, info) => Report("banner", info);
+    MaxSdkCallbacks.MRec.OnAdRevenuePaidEvent         += (id, info) => Report("mrec", info);
+}
+```
+
+`adUnit` 과 `placement` 는 지금 대시보드가 읽지 않습니다. 다만 저장이 스키마리스라
+심어두면 나중에 광고 단위별 분석을 소급해서 할 수 있습니다. MAX가 공짜로 주는 값이라 넣어두길 권합니다.
+
+> **PC 게임은 해당 없습니다.** IAA는 모바일 게임 얘기입니다.
 
 ### 6-3. 스테이지 퍼널
 
@@ -225,7 +286,7 @@ await Talo.Events.Flush();
 | 이벤트 | props | 심는 위치 | 켜지는 화면 |
 |---|---|---|---|
 | `purchase` | `amount`, `currency`, `product`, `store`(선택), `order_id`(권장) | IAP 결제 **성공** | 매출, ARPPU, PUR, LTV, 상품별 |
-| `ad_revenue` | `amount`, `currency`, `format`, `network` | 미디에이션 수익 콜백 | 광고수익, eCPM |
+| `ad_revenue` | `amount`, `currency`, `format`, `network`, `ad_unit`(선택), `placement`(선택) | 미디에이션 수익 콜백 | 광고수익, eCPM |
 | `stage_start` | `stage`(숫자) | 스테이지 진입 | 스테이지 퍼널, 구간 이탈률 |
 | `stage_end` | `stage`(숫자), `result`, `duration_sec`(선택) | 스테이지 종료 | 지금은 저장만 |
 | `tutorial_step` | `step`(이름), `index`(숫자) | 튜토리얼 각 단계 | 튜토리얼 완료율 |
@@ -307,7 +368,7 @@ await Talo.Events.Flush();
 7. **평문 HTTP는 Unity가 기본 차단**합니다.
 8. **이벤트/prop 이름은 계약**입니다. 심은 뒤 바꾸면 게임 재배포가 필요합니다.
 9. **일부 필드는 저장만** 되고 전용 화면이 아직 없습니다 (`stage_end` 의 `result`, `duration_sec` 등).
-10. **통화 혼합은 자동 환산하지 않습니다.**
+10. **통화 혼합은 자동 환산하지 않습니다.** IAP와 IAA를 붙일 때 특히 걸립니다. 미디에이션은 보통 USD로 주므로 **게임에서 매출 발생일 환율로 환산해 IAP와 같은 통화로** 보내세요(6-2장).
 11. **엔드투엔드 지연 약 1.5분**은 정상입니다.
 12. **리텐션 D1은 다음 날** 재접속해야 생깁니다.
 13. ⚠️ **오프라인 기록(continuity)은 별도 스코프가 필요합니다.**
