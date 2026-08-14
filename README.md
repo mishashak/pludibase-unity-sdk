@@ -7,8 +7,8 @@ Talo 게임 백엔드 위에 얹는 pludibase 얇은 SDK입니다. **구글/애�
 > **연동은 [`docs/INTEGRATION-GUIDE.md`](docs/INTEGRATION-GUIDE.md) 하나만 따라가면 됩니다.**
 > 설치, 설정, 계측 지점, 자주 나는 문제까지 전부 거기 있습니다.
 
-> 상태: **0.1.4**. 백엔드 서버검증은 3개 스토어(Google Play, App Store, Steam)와
-> 구글/애플 로그인까지 붙어 있고, 광고수익(IAA) 전송 헬퍼도 들어 있습니다.
+> 상태: **0.1.5**. 백엔드 서버검증은 3개 스토어(Google Play, App Store, Steam)와
+> 구글/애플 로그인까지 붙어 있고, 광고수익(IAA) 전송 헬퍼와 플레이어 속성 저장도 들어 있습니다.
 > 백엔드 계약은 [`docs/VERIFY-CONTRACT.md`](docs/VERIFY-CONTRACT.md).
 
 ## 무엇을 하고 무엇을 안 하나

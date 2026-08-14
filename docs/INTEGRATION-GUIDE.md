@@ -1,6 +1,6 @@
 # pludibase 연동 가이드 (Unity)
 
-v2.1.0 (2026-08-11). SDK 0.1.4 기준.
+v2.2.0 (2026-08-14). SDK 0.1.5 기준.
 
 pludibase는 오픈소스 게임 백엔드(Talo 기반)에 한국식 지표 대시보드를 얹은 서비스입니다.
 Talo Unity SDK가 세션과 이벤트를 담당하고, pludibase SDK가 그 위에서 **소셜 로그인 서버검증**과
@@ -150,10 +150,35 @@ if (result.valid)
 ```
 
 - 3개 스토어를 같은 함수로 지원합니다: Google Play, App Store, Steam.
-- 금액과 통화는 분석용 보고값이고, **구매 유효성은 서버가 스토어에 직접 물어서** 판정합니다.
+- **구매 유효성은 서버가 스토어에 직접 물어서** 판정합니다.
+- 금액은 스토어가 알려주는 경우 서버가 스토어 값으로 확정합니다(Google Play는 카탈로그 가격, App Store는
+  서명된 트랜잭션). 응답의 `amountSource` 가 `store` 면 그 값이고, `client` 면 보내신 값이 그대로 남은
+  것입니다(현재 Steam, 그리고 카탈로그 조회 실패 시).
 - 서버에 게임별 스토어 자격증명이 등록돼야 실제 검증이 됩니다
   (Play 서비스계정, App Store 키, Steam publisher 키).
 - Unity IAP `ProcessPurchase` 에 끼우는 예시는 `Samples~/PurchaseVerification` 참고.
+
+---
+
+## 5-B. 플레이어 속성(props) 저장
+
+플레이어에 값을 붙여 두면(게임 계정 키, 서버 지역, 티어 등) 대시보드에서 보이고 그룹 조건으로도 쓸 수 있습니다.
+
+```csharp
+using Pludibase;
+
+// Talo.Players.Update() 대신
+await PludibasePlayers.SetProps(TaloGameServices.Talo.CurrentPlayer.id, ("VID", vid));
+
+// 여러 개 한 번에, null을 주면 그 prop 삭제
+await PludibasePlayers.SetProps(playerId, ("tier", "gold"), ("temp_flag", null));
+```
+
+- Talo의 `SetProp` 으로 로컬 값을 세팅하는 부분은 그대로 두고 **마지막 네트워크 호출만** 이걸로 바꿉니다.
+- 왜 따로 있나: `Talo.Players.Update()` 는 Player 전체를 직렬화해 보내는데, `PlayerAlias.player` 가
+  자기 자신을 다시 물어 `presence` 줄기가 반복됩니다. 실측에서 본문의 93%가 그것이었습니다
+  (props+id 320자 대 presence 4,440자). 서버는 `props` 외의 필드를 읽지 않아 전부 버려집니다.
+- 이 호출은 **서버만** 갱신합니다. 로컬 `Talo.CurrentPlayer` 의 props는 `SetProp` 이 이미 맞춰 둔 값입니다.
 
 ---
 

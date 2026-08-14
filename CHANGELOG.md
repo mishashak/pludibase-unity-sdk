@@ -2,6 +2,34 @@
 
 이 프로젝트는 [Semantic Versioning](https://semver.org)을 따른다.
 
+## [0.1.5] - 2026-08-14 (props 최소 페이로드 + 백엔드 하드닝 2건)
+
+### 추가
+- **`PludibasePlayers.SetProps(playerId, ...)`**. `Talo.Players.Update()` 자리에 쓰면 본문이 `props` 만
+  담긴 최소 페이로드로 나간다. Talo의 Update()는 `JsonUtility.ToJson(Talo.CurrentPlayer)` 로 Player 전체를
+  직렬화하는데 `PlayerAlias.player` 가 자기 자신을 다시 물어 `presence` 줄기가 깊이 제한까지 반복된다.
+  실제 게임 실측에서 prop 하나를 쓰는 본문의 93%가 그것이었다(props+id 320자 대 presence 4,440자).
+  서버 PATCH 핸들러는 `props` 외의 필드를 읽지 않으므로 전부 버려지는 낭비였다.
+  `value` 에 `null` 을 주면 그 prop을 삭제한다(JsonUtility로는 표현할 수 없어 JSON을 직접 만든다).
+  로컬 `SetProp` 은 그대로 두고 마지막 네트워크 호출만 바꾸면 된다.
+
+### 백엔드 (`pludibase` 브랜치, SDK 코드 변경 아님)
+- **merge의 `username` 별칭 충돌 예외.** 두 플레이어가 모두 `username` 별칭을 가져도 병합된다.
+  `username` 은 기기 GUID를 담는 자리라 한 플레이어가 여럿 갖는 것이 정상이다. 이게 막혀 있어서
+  재설치나 기기추가마다 게스트 플레이어가 고아로 남았다. 병합 후 두 기기의 별칭이 모두 남는다.
+  나머지 service는 그대로 400.
+- **`google-sign-in` / `apple-sign-in` Integration 누락 가드.** Integration이 없는 게임에서 토큰 검증을
+  건너뛰고 넘어온 문자열이 그대로 alias 식별자가 되던 구멍을 막았다(400). 0.1.4 문서 §1의 "알려진 구멍".
+- **결제 금액 서버 확정.** Google Play는 카탈로그 가격(구매 지역가 우선, 수량 반영), App Store는 서명된
+  트랜잭션의 `price`/`currency` 를 정본으로 쓴다. 응답에 `amountSource`(`store`/`client`) 추가.
+  클라이언트 값과 어긋나면 스토어 값으로 기록하고 백엔드 로그에 양쪽을 남긴다.
+  Steam은 금액 최소 단위 규칙을 실거래로 확인하기 전까지 클라이언트 값을 그대로 둔다.
+
+### 문서
+- 연동 가이드 §5-B(플레이어 속성 저장) 신설, §5 결제 금액 설명 갱신 (v2.2.0).
+- 검증 계약 §2-C(`PATCH /v1/players/:id`) 신설. §1 구멍 경고를 "막았다"로, §2 금액 절을 스토어 확정으로,
+  §2-B 병합 경고를 `username` 예외로 갱신. §5 남은 일에서 2건 제거 (v1.2.0).
+
 ## [0.1.4] - 2026-08-11 (문서 정정: 낡은 설계 초안 제거)
 코드 변경 없음. 문서가 실제 구현과 어긋나 연동 담당자를 헤매게 한 부분을 고쳤다.
 
