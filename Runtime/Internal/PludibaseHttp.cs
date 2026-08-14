@@ -5,12 +5,17 @@ using UnityEngine.Networking;
 namespace Pludibase
 {
     /// <summary>
-    /// pludibase 백엔드로 JSON POST를 보내는 내부 헬퍼.
+    /// pludibase 백엔드로 JSON 요청을 보내는 내부 헬퍼.
     /// UnityWebRequest를 async/await로 감싸(SendWebRequest는 자체로 awaitable이 아니므로 completed 콜백을 TaskCompletionSource로 브리지).
     /// </summary>
     internal static class PludibaseHttp
     {
-        internal static async Task<string> Post(string path, string json)
+        internal static Task<string> Post(string path, string json)
+        {
+            return Send(UnityWebRequest.kHttpVerbPOST, path, json);
+        }
+
+        internal static async Task<string> Send(string method, string path, string json)
         {
             if (!PludibaseClient.IsConfigured)
             {
@@ -20,7 +25,7 @@ namespace Pludibase
 
             var url = PludibaseClient.ApiUrl.TrimEnd('/') + path;
 
-            using var req = new UnityWebRequest(url, UnityWebRequest.kHttpVerbPOST);
+            using var req = new UnityWebRequest(url, method);
             req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
             req.downloadHandler = new DownloadHandlerBuffer();
             req.SetRequestHeader("Content-Type", "application/json");

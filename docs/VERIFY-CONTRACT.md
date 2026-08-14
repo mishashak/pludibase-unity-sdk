@@ -1,6 +1,6 @@
 # 백엔드 검증 계약 (구현 정본)
 
-v1.1.0 (2026-08-11). SDK 0.1.4 / 백엔드 `pludibase` 브랜치 기준.
+v1.2.0 (2026-08-14). SDK 0.1.5 / 백엔드 `pludibase` 브랜치 기준.
 
 > **이전 판(v1.0.0) 정정.** 이 문서는 원래 P1 착수 **전에 쓴 설계 초안**이었습니다. 그래서 §5가 실제 구현과 어긋나 있었고(존재하지 않는 `/v1/players/auth/google`, 실재하지 않는 `sessionToken` 배선), §2의 금액 처리 설명도 실제와 달랐습니다. 이 판은 **구현된 코드를 읽고 쓴 것**입니다.
 
@@ -30,7 +30,7 @@ GET /v1/players/identify?service=apple&identifier=<Apple identity 토큰(JWT)>
 2. 토큰의 `sub`를 식별자로 `player_alias`(service=`google`/`apple`) 조회/생성.
 3. 세션은 기존 identify 흐름이 그대로 처리합니다. 응답의 `socketToken`을 Talo SDK가 받아 세션을 엽니다. **게스트 identify와 완전히 같은 경로라 SDK에 추가로 배선할 것이 없습니다.**
 
-> ⚠️ **알려진 구멍.** 1번 분기가 `if (integration)` 조건부입니다(`player-alias.ts:159`). 그 게임에 해당 Integration이 없으면 **검증을 건너뛰고 넘어온 문자열이 그대로 alias 식별자가 됩니다.** 새 게임을 붙일 때 Integration 등록을 빠뜨리면 토큰 검증 없이 통과합니다. 가드 추가 예정(§5).
+> **Integration이 없으면 거부합니다 (0.1.5부터).** 예전에는 이 분기가 `if (integration)` 조건부라, 해당 Integration이 없는 게임에서는 검증을 건너뛰고 넘어온 문자열이 그대로 alias 식별자가 됐습니다. 남의 `sub` 값을 적어 보내면 그 사람으로 로그인되는 구멍이었습니다. 지금은 `400 Google Sign-In is not configured for this game`(애플도 동일)으로 막힙니다. 새 게임을 붙일 때 **Integration 등록이 로그인의 전제**입니다.
 
 ### 설정 (게임별)
 - Integration 타입 `google-sign-in` / `apple-sign-in`, config = `{ clientId }` (검증용 `aud`, 비밀 아님이라 미암호화).
@@ -80,10 +80,13 @@ GET /v1/players/identify?service=apple&identifier=<Apple identity 토큰(JWT)>
   "product": "gem_pouch",
   "amount": 4900,
   "currency": "KRW",
+  "amountSource": "store",
   "store": "google_play",
   "status": "verified"
 }
 ```
+
+`amountSource` 는 이 금액이 어디서 왔는지입니다. `store` 면 스토어가 확정해 준 값, `client` 면 보내신 값이 그대로 남은 것입니다(§2 금액 항목).
 
 ### 응답 (검증 실패, 200)
 ```json
@@ -96,7 +99,19 @@ GET /v1/players/identify?service=apple&identifier=<Apple identity 토큰(JWT)>
 ```
 `valid: false` 면 게임은 지급하지 않습니다. 이때 `amount` / `currency` / `status` 는 오지 않습니다.
 
-> ⚠️ **금액은 아직 서버가 확정하지 않습니다.** `amount` / `currency` 는 **클라이언트가 보낸 값을 그대로 저장하고 그대로 돌려주는 값**입니다. 서버가 확정하는 것은 **구매의 유효성**(위조 아님, 재사용 아님)까지입니다. 위조된 금액을 지표에 넣을 수는 있으므로, 정산 정본으로 쓰지 마세요. 하드닝 예정(§5).
+### 금액은 스토어 값이 정본입니다 (0.1.5부터)
+
+보내주신 `amount` / `currency` 는 스토어가 금액을 알려주는 경우 **서버가 스토어 값으로 덮어씁니다.** 응답과 대시보드 매출에 들어가는 것도 그 값입니다.
+
+| store | 금액 출처 | `amountSource` |
+|---|---|---|
+| `google_play` | Play 콘솔 상품 카탈로그 가격(구매 지역가 우선, 수량 반영) | `store` |
+| `app_store` | 애플이 서명한 트랜잭션의 `price` / `currency` | `store` |
+| `steam` | 아직 클라이언트 보고값 | `client` |
+
+Steam은 QueryTxn이 주는 금액의 최소 단위 규칙을 실거래로 확인하기 전까지 열지 않았습니다. 잘못 환산하면 매출이 100배로 어긋나기 때문입니다.
+
+> ⚠️ 카탈로그 조회에 실패했거나(Play API 오류) 스토어가 금액을 주지 않은 옛 트랜잭션이면 보내신 값이 그대로 남고 `amountSource` 가 `client` 로 돌아옵니다. 이 경우에는 여전히 정산 정본으로 쓰지 마세요. 클라이언트 값과 스토어 값이 어긋나면 서버는 스토어 값으로 기록하고 백엔드 로그(`[purchase] 금액 불일치`)에 양쪽을 남깁니다.
 
 ### 에러
 | 코드 | errorCode | 뜻 |
@@ -122,14 +137,35 @@ Google Real-time Developer Notifications, Apple App Store Server Notifications V
 - props가 양쪽에 같은 key로 있으면 **`playerId2`(흡수되는 쪽) 값이 남습니다.** 직관과 반대이니 주의.
 - 세션은 유지됩니다. 별칭이 삭제되지 않고 옮겨지기 때문에 재identify가 필요 없습니다.
 
-> ⚠️ **두 플레이어가 같은 service의 별칭을 가지면 400으로 거부됩니다.** 익명 플레이를 `username` 별칭으로 잡는 구조라면, 재설치로 새 게스트가 생겼을 때 소셜 플레이어에 이미 `username` 별칭이 있어 병합이 막힙니다. 즉 **기기당 최초 1회만 성공**합니다. 재설치 직후 게스트는 빈 플레이어라 잃을 것이 없으므로, 이 400은 정상으로 처리하고 넘어가면 됩니다.
+> **두 플레이어가 같은 service의 별칭을 가지면 400으로 거부됩니다. 단 `username` 은 예외입니다 (0.1.5부터).** `username` 별칭은 기기 GUID를 담는 자리라 한 플레이어가 여럿 갖는 것이 정상입니다. 그래서 재설치나 기기추가로 생긴 게스트도 그대로 병합됩니다(예전에는 여기서 400이 나 기기당 최초 1회만 성공했고, 재설치마다 고아 플레이어가 남았습니다). 병합 후에는 두 기기의 `username` 별칭이 모두 남아 어느 기기로 들어와도 같은 플레이어가 됩니다. 나머지 service(`custom`, `email` 등)는 그대로 400입니다.
 
 > ⚠️ Unity의 `MergeOptions.postMergeIdentityService` 에 `"google"` / `"apple"` 을 넣지 마세요. 저장된 `sub` 값으로 다시 identify를 걸어버리는데, 백엔드는 그 값을 ID 토큰으로 보고 검증하려 해서 실패합니다.
 
 ### 재시도 판정
-재시도 금지(전부 상태 문제): `400 Cannot merge a player into themselves` / `404 Player {id} does not exist` / `403 This merge must be initiated by player {id}` / `400` 제한 별칭 보유 / `400` 같은 service 중복.
+재시도 금지(전부 상태 문제): `400 Cannot merge a player into themselves` / `404 Player {id} does not exist` / `403 This merge must be initiated by player {id}` / `400` 제한 별칭 보유 / `400` 같은 service 중복(`username` 제외).
 재시도 가능: 네트워크 오류, 5xx.
 `playerId2` 가 404면 이미 병합된 것이니 **성공으로 처리**하면 됩니다.
+
+---
+
+## 2-C. 플레이어 속성 저장 `PATCH /v1/players/:id`
+
+필요 스코프: `write:players`. `x-talo-alias` 헤더는 필요 없습니다.
+
+```json
+{ "props": [{ "key": "VID", "value": "abc123" }] }
+```
+
+**서버는 `props` 외의 필드를 읽지 않습니다.** 스키마가 `props` 하나뿐이라 나머지는 핸들러에 닿기 전에 버려집니다. `value` 를 `null` 로 주면 그 prop이 삭제됩니다.
+
+> Talo SDK의 `Talo.Players.Update()` 는 `JsonUtility.ToJson(Talo.CurrentPlayer)` 로 Player 전체를 직렬화해 보냅니다. `PlayerAlias.player` 가 자기 자신을 다시 물어 `presence` 줄기가 깊이 제한까지 반복되고, 실측에서 본문의 93%가 그것이었습니다(props+id 320자 대 presence 4,440자). 서버가 어차피 버리는 값이라 SDK에 최소 페이로드 경로를 뒀습니다.
+>
+> ```csharp
+> // await Talo.Players.Update();
+> await PludibasePlayers.SetProps(Talo.CurrentPlayer.id, ("VID", vid));
+> ```
+>
+> `SetProp` 으로 로컬 값을 세팅하는 부분은 그대로 두고 마지막 네트워크 호출만 바꾸면 됩니다. 이 호출은 서버만 갱신합니다.
 
 ---
 
@@ -143,7 +179,7 @@ Google Real-time Developer Notifications, Apple App Store Server Notifications V
 | store | google_play / app_store / steam |
 | product_id | 상품 |
 | transaction_id | 스토어 트랜잭션 ID (store와 함께 **유니크** = dedup 키) |
-| amount, currency | 클라이언트 보고값 (서버 확정 아님, §2 경고 참조) |
+| amount, currency | 스토어 확정값. 스토어가 금액을 주지 않으면 클라이언트 보고값 (§2 금액 항목) |
 | status | verified / consumed / refunded / revoked |
 | acknowledged | Google acknowledge 여부 |
 | raw | 감사용 원본 자리. **현재는 기록하지 않습니다.** |
@@ -157,7 +193,7 @@ Google Real-time Developer Notifications, Apple App Store Server Notifications V
 - 영수증/토큰 **재사용 차단**(`store` + `transaction_id` 유니크).
 - 스토어 자격증명(서비스 계정 키, 애플 private key, Steam publisher 키)은 시크릿 관리, 커밋 금지.
 - 소셜 토큰은 `aud` / `iss` / 만료를 모두 확인한다(다른 앱 토큰 재사용 차단).
-- 금액은 아직 이 원칙의 예외다. §2 경고 참조.
+- 금액도 스토어가 주는 경우 서버가 확정한다(Google Play 카탈로그, App Store 트랜잭션). Steam만 아직 예외다. §2 금액 항목 참조.
 
 ---
 
@@ -165,7 +201,8 @@ Google Real-time Developer Notifications, Apple App Store Server Notifications V
 
 P1(소셜 로그인 + 3개 스토어 결제 검증)은 끝났습니다. 남은 것은 다음과 같습니다.
 
-1. **금액 서버 확정.** Google Play 카탈로그 가격 대조로 `amount` / `currency` 를 서버가 확정하도록 하드닝.
-2. **Integration 누락 가드.** `google-sign-in` / `apple-sign-in` Integration이 없을 때 조용히 통과시키지 않고 거부하도록(§1 경고).
-3. **환불/취소 알림 수신** 엔드포인트(§2).
-4. **스토어 실검증 E2E.** 게임별 자격증명이 있어야 합니다. 코드는 준비돼 있고, Play 서비스 계정 키를 받는 대로 실제 게임에서 확인합니다.
+1. **Steam 금액 서버 확정.** QueryTxn이 주는 금액의 최소 단위 규칙을 실거래로 확인한 뒤 엽니다(§2 금액 항목).
+2. **환불/취소 알림 수신** 엔드포인트(§2).
+3. **스토어 실검증 E2E.** 게임별 자격증명이 있어야 합니다. 코드는 준비돼 있고, Play 서비스 계정 키를 받는 대로 실제 게임에서 확인합니다.
+
+끝난 것: 금액 서버 확정(Google Play, App Store), `google-sign-in` / `apple-sign-in` Integration 누락 가드. 둘 다 0.1.5입니다.

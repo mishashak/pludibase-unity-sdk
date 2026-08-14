@@ -63,6 +63,9 @@ namespace Pludibase
         public string product;
         public double amount;
         public string currency;
+        // amount가 어디서 온 값인지. store = 스토어가 확정해 준 값(Google Play 카탈로그 가격,
+        // App Store 서명 트랜잭션), client = 보낸 값이 그대로 남은 것(Steam, 또는 카탈로그 조회 실패).
+        public string amountSource;
         public string store;
         public string status; // verified / consumed / refunded
     }
