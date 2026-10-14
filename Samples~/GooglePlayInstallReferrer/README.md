@@ -21,6 +21,8 @@ implementation 'com.android.installreferrer:installreferrer:2.2'
 
 Java 콜백은 요청 nonce, 응답 코드, 오류 상태, raw Referrer와 Google의 클릭·설치 시작 초 단위 시각을 보존합니다. nonce가 다른 오래된 콜백은 폐기합니다. Java 10초/C# 15초 타임아웃과 연결 종료를 적용합니다. raw Referrer를 로그나 일반 CSV에 출력하지 마세요. 이 값 자체로 Meta 소재 귀속을 확정하지 않습니다.
 
+Meta 소재별 잔존율은 이 GPIR 원문을 신규 서버 어댑터가 처리하고 광고 CSV의 단일 소재와 연결해야 합니다. 앱에 복호화 키를 넣지 않습니다. 상세는 `docs/ACQUISITION-GUIDE.md`의 Meta 연동 절차를 따릅니다.
+
 Editor, 직접 APK 설치, Google Play가 없는 기기는 검증 환경이 아닙니다. 최종 검수에는 테스트 트랙의 실제 Play 설치가 필요합니다. 이 구현에서는 Unity 빌드·기기·실광고 경로를 실행하지 않았습니다.
 
 공식 근거(2026-10-08 확인): [Google Play Install Referrer Library](https://developer.android.com/google/play/installreferrer/library), [ReferrerDetails](https://developer.android.com/reference/com/android/installreferrer/api/ReferrerDetails), [2.2 릴리스 노트](https://developer.android.com/google/play/installreferrer/release-notes). Google 문서는 설치 후 첫 실행에서 한 번 조회하고 사용 후 `endConnection()`으로 닫도록 안내합니다.

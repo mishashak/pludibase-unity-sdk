@@ -83,7 +83,7 @@ Unity IAP의 `ProcessPurchase`에 어떻게 끼우는지는 [`Samples~/PurchaseV
 `PludibaseBootstrap`은 게스트 세션 시작과 함께 `LogPurchase`, `LogAdRevenue`, `StageStart/End`, `TutorialStep`, `CurrencyChange` 헬퍼를 제공합니다(대시보드 지표 자동 집계).
 
 ### 설치·초기 활동
-추가 다운로드 전 `PludibaseAcquisition.Initialize(new AcquisitionOptions { ApiUrl = ..., AccessKey = ..., StorageNamespace = "my-game" })`를 호출합니다. Bootstrap은 첫 씬의 `Awake`에서 fallback 초기화합니다. `SetGameplayActive(true/false)`로 실제 플레이 시간을 지정하고 다운로드·튜토리얼·로그인 이벤트는 해당 성공 지점에서 `Track`합니다. Google Play Referrer는 명시적으로 Java/Gradle 샘플을 설치한 경우에만 활성화하며 Meta 수집·복호화는 unavailable입니다.
+추가 다운로드 전 `PludibaseAcquisition.Initialize(new AcquisitionOptions { ApiUrl = ..., AccessKey = ..., StorageNamespace = "my-game" })`를 호출합니다. Bootstrap은 첫 씬의 `Awake`에서 fallback 초기화합니다. `SetGameplayActive(true/false)`로 실제 플레이 시간을 지정하고 다운로드·튜토리얼·로그인 이벤트는 해당 성공 지점에서 `Track`합니다. Google Play Referrer는 Java/Gradle 샘플 설치 후 활성화합니다. Meta GPIR 소재 연결은 신규 서버 어댑터와 앱별 키·광고 CSV가 필요하며 [연동 가이드](docs/ACQUISITION-GUIDE.md)를 따릅니다. MIR 수집은 미지원입니다.
 
 ## 로드맵
 - P1: 백엔드 verify 구현 후 안드로이드 E2E(구글 로그인 + Google Play 결제).
