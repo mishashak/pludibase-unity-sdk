@@ -1,6 +1,6 @@
 # pludibase 연동 가이드 (Unity)
 
-v2.2.0 (2026-08-14). SDK 0.1.5 기준.
+v2.3.0 (2026-10-08). SDK 0.2.0 CPI 연동 브랜치 기준(실게임 검수 전).
 
 pludibase는 오픈소스 게임 백엔드(Talo 기반)에 한국식 지표 대시보드를 얹은 서비스입니다.
 Talo Unity SDK가 세션과 이벤트를 담당하고, pludibase SDK가 그 위에서 **소셜 로그인 서버검증**과
@@ -32,6 +32,8 @@ Talo Unity SDK가 세션과 이벤트를 담당하고, pludibase SDK가 그 위�
 403이 아니라 **조용히 무시되고 동기화한 시각으로 저장**되니, 쓰실 거면 미리 말씀해 주세요.
 스코프는 키를 다시 발급하지 않고 추가됩니다. 쓰시던 키 그대로 두시면 됩니다.
 
+위 continuity scope는 기존 Talo 이벤트에 해당합니다. **설치 계측의 독립 큐는 `write:events`만으로 원래 발생시각을 보존**합니다. 추가 다운로드 전 Initialize와 계측 지점은 [설치·초기 활동 계측 가이드](ACQUISITION-GUIDE.md)를 먼저 적용하세요.
+
 > `localhost`는 서버와 같은 PC(에디터)에서만 통합니다. 폰이나 다른 기기 빌드로 테스트하면
 > 서버 PC의 실제 주소여야 합니다.
 
@@ -53,7 +55,7 @@ pludibase SDK는 Talo 위에서 돕니다. **먼저 설치해야 합니다.**
 Package Manager > `+` > **Add package from git URL**:
 
 ```
-https://github.com/mishashak/pludibase-unity-sdk.git
+https://github.com/mishashak/pludibase-unity-sdk.git#codex/cpi-integration
 ```
 
 공개 저장소라 별도 권한이나 인증 없이 받아집니다.
@@ -108,6 +110,10 @@ Talo Settings는 Talo SDK용이고, 이 두 칸은 pludibase SDK(결제/소셜)�
 같은 백엔드를 가리키므로 값은 동일합니다.
 
 이것만으로 게임 시작 시 게스트 세션이 시작되고 DAU, 동접, 리텐션이 자동으로 쌓입니다.
+
+SDK 0.2.0 후보에서는 Bootstrap `Awake`가 설치 계측도 초기화합니다. 첫 실행 씬에 두고 위 `Api Url`과 `Access Key`를 채워야 합니다. 추가 다운로드를 다른 초기 코드에서 먼저 시작한다면 다운로드 **전** `PludibaseAcquisition.Initialize`를 명시적으로 호출합니다. `InitReady`는 로컬 영구 저장 준비 완료이며 Identify/네트워크 성공을 뜻하지 않습니다. Play Referrer는 opt-in Java bridge/Gradle 설정 이후에만 `Collect Google Play Referrer`를 켭니다.
+
+`verifyRequests=true` 또는 native TALO 인증을 사용하는 게임은 설치 link에 추가 서명·세션/플레이어 헤더가 필요합니다. 기존 인증 모듈을 `LinkHeadersProvider`로 연결하는 절차는 [설치 계측 가이드의 link 인증 문맥](ACQUISITION-GUIDE.md#link-인증-문맥)을 적용하세요. API 키·alias만으로 해당 게임의 link 인증이 완료된다고 가정하지 않습니다.
 
 ---
 

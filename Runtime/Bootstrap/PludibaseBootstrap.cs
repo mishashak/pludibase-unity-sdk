@@ -13,6 +13,7 @@ namespace Pludibase
     /// 소셜 로그인(구글/애플)이 필요하면 Start의 게스트 Identify를 PludibaseAuth.SignInWithGoogle/Apple로 대체/승격한다.
     /// (구 TaloBootstrap.cs를 SDK로 흡수한 것. Talo 어셈블리에 의존.)
     /// </summary>
+    [DefaultExecutionOrder(-10000)]
     public class PludibaseBootstrap : MonoBehaviour
     {
         [Tooltip("이 플레이어를 식별하는 고정 ID. 비워두면 기기별로 자동 생성해 저장합니다.")]
@@ -22,10 +23,60 @@ namespace Pludibase
         public string apiUrl = "";
         public string accessKey = "";
 
+        [Tooltip("설치별 계측을 Awake에서 초기화합니다. 추가 다운로드 전 첫 씬에 두거나 Acquisition.Initialize를 더 먼저 호출하세요.")]
+        public bool initializeAcquisition = true;
+        public string acquisitionStorageNamespace = "default";
+        [Tooltip("Google Play Referrer Java bridge와 Gradle 의존성을 직접 설치했을 때만 켭니다.")]
+        public bool collectGooglePlayReferrer = false;
+        [Tooltip("선택한 테스트/대상 국가(두 글자). 기기 위치를 감지하는 값이 아닙니다.")]
+        public string acquisitionCountry = "";
+        public string buildVersion = "";
+
+        public bool InitReady => PludibaseAcquisition.InitReady;
+        private static PludibaseBootstrap activeBootstrap;
+        private bool ownsBootstrap;
+
         private const string PlayerIdKey = "pludibase_player_id";
+
+        private void Awake()
+        {
+            if (activeBootstrap != null && activeBootstrap != this)
+            {
+                Destroy(this);
+                return;
+            }
+            activeBootstrap = this;
+            ownsBootstrap = true;
+            if (!initializeAcquisition || PludibaseAcquisition.InitReady) return;
+            if (string.IsNullOrEmpty(apiUrl) || string.IsNullOrEmpty(accessKey))
+            {
+                Debug.LogWarning("[pludibase] 설치 계측에는 Bootstrap의 Api Url / Access Key 또는 사전 Acquisition.Initialize 호출이 필요합니다.");
+                return;
+            }
+            try
+            {
+                PludibaseAcquisition.Initialize(new AcquisitionOptions
+                {
+                    ApiUrl = apiUrl, AccessKey = accessKey,
+                    StorageNamespace = acquisitionStorageNamespace,
+                    CollectGooglePlayReferrer = collectGooglePlayReferrer,
+                    Country = acquisitionCountry, BuildVersion = buildVersion
+                });
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError("[pludibase] 설치 계측 초기화 실패 (" + ex.GetType().Name + "). 설정·저장소를 확인하세요.");
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (activeBootstrap == this) activeBootstrap = null;
+        }
 
         private async void Start()
         {
+            if (!ownsBootstrap) return;
             // 결제/소셜 로그인 SDK도 같은 백엔드를 쓰도록 설정.
             if (!string.IsNullOrEmpty(apiUrl) && !string.IsNullOrEmpty(accessKey))
             {
@@ -50,6 +101,8 @@ namespace Pludibase
                 // 실제 계정 로그인이 필요하면 PludibaseAuth.SignInWithGoogle/Apple 로 승격하세요.
                 await Talo.Players.Identify("username", playerId);
                 Debug.Log($"[pludibase] 연결 성공 · alias={Talo.CurrentAlias.id}");
+                if (PludibaseAcquisition.InitReady)
+                    PludibaseAcquisition.LinkIdentifiedPlayer(Talo.CurrentAlias.id.ToString());
             }
             catch (System.Exception ex)
             {
@@ -100,6 +153,11 @@ namespace Pludibase
         // 스테이지 진입. ※ stage는 순서 비교 위해 숫자로.
         public async Task StageStart(int stage)
         {
+            if (PludibaseAcquisition.InitReady)
+                PludibaseAcquisition.Track("stage_start", new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "stage", stage.ToString(CultureInfo.InvariantCulture) }
+                });
             await Talo.Events.Track("stage_start", ("stage", stage.ToString()));
             await Talo.Events.Flush();
         }
@@ -107,6 +165,12 @@ namespace Pludibase
         // 스테이지 종료. result: clear / fail / quit.
         public async Task StageEnd(int stage, string result, int durationSec = 0)
         {
+            if (PludibaseAcquisition.InitReady)
+                PludibaseAcquisition.Track("stage_end", new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "stage", stage.ToString(CultureInfo.InvariantCulture) },
+                    { "result", result ?? "" }, { "duration_sec", durationSec.ToString(CultureInfo.InvariantCulture) }
+                });
             await Talo.Events.Track("stage_end",
                 ("stage", stage.ToString()),
                 ("result", result),
